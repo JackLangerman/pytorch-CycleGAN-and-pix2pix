@@ -109,7 +109,7 @@ class UnalignedDatasetLabel(BaseDataset):
 
         return {
                 'A': A, 'B': B, 
-                'A_paths': A_path, 'B_paths': B_path
+                'A_paths': A_path, 'B_paths': B_path,
                 'A_paths': A_lbl_path, 'B_paths': B_lbl_path
             }
 

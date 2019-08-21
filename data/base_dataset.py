@@ -9,6 +9,7 @@ from PIL import Image
 import torchvision.transforms as transforms
 from abc import ABC, abstractmethod
 
+import albumentations as ab
 
 class BaseDataset(data.Dataset, ABC):
     """This class is an abstract base class (ABC) for datasets.
@@ -78,7 +79,46 @@ def get_params(opt, size):
     return {'crop_pos': (x, y), 'flip': flip}
 
 
-def get_transform(opt, params=None, grayscale=False, method=Image.BICUBIC, convert=True):
+def get_transform(
+    opt, 
+    params=None, 
+    grayscale=False, 
+    method=Image.BICUBIC, 
+    convert=True, 
+    paired=False ):
+
+    transform_list = []
+    if paired:
+        if opt.preprocess == 'resize_and_crop':
+            new_h = new_w = opt.load_size
+        elif opt.preprocess == 'scale_width_and_crop':
+            new_w = opt.load_size
+            new_h = opt.load_size * h // w
+
+
+        T = ab.Compose([
+            ab.Resize(height=new_h, width=new_w),
+            ab.RandomShadow(),
+            ab.RandomSunFlare(p=.1),
+            ab.OpticalDistortion(),
+            ab.HueSaturationValue(),
+            ab.RandomBrightness(),
+            ab.RandomContrast(),
+            ab.OneOf([
+                ab.MotionBlur(blur_limit=50),
+                ab.MedianBlur(),
+                ab.GaussianBlur(),
+            ]),
+            ab.CoarseDropout(),
+            ab.Normalize(),
+            ab.ChannelDropout(),
+            ab.ShiftScaleRotate(shift_limit=0.005, scale_limit=0.1, rotate_limit=10, interpolation=1),
+            ab.pytorch.ToTensor(sigmoid=False)
+        ])
+
+        return T
+
+
     transform_list = []
     if grayscale:
         transform_list.append(transforms.Grayscale(1))

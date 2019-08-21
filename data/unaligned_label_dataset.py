@@ -130,6 +130,17 @@ class UnalignedLabelDataset(BaseDataset):
             B = torch.cat((aug['image'], aug['mask']))
         else:
             B = self.transform_A(B_img)
+
+        # pad images with less channels 
+        if self.hasLblA != self.hasLblB:
+            s, l = (A, B) if A.shape[0] < B.shape[0] else (B, A)
+            diff = len(l)-len(s)
+            padding = torch.zeros((diff, *A.shape[1:]))
+            s = torch.cat((s, padding))
+            if A.shape[0] < B.shape[0]:
+                A, B = s, l 
+            else:
+                B, A = s, l
         ### /added by jack ### 
 
         return {

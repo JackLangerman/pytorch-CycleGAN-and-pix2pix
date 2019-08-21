@@ -108,8 +108,8 @@ class UnalignedLabelDataset(BaseDataset):
         else:   # randomize the index for domain B to avoid fixed pairs.
             index_B = random.randint(0, self.B_size - 1)
         B_path = self.B_paths[index_B]
-        A_img = np.asarray(Image.open(A_path).convert('RGB'))
-        B_img = np.asarray(Image.open(B_path).convert('RGB'))
+        A_img = Image.open(A_path).convert('RGB')
+        B_img = Image.open(B_path).convert('RGB')
 
         # apply image transformation
         # A = self.transform_A(A_img)
@@ -121,25 +121,39 @@ class UnalignedLabelDataset(BaseDataset):
         if self.hasLblA:
             A_lbl_path = self.A_lbl_paths[index_A]  # use index from above
             A_lbl = np.asarray(skimage.io.imread(A_lbl_path))
+            A_img = np.asarray(A_img)
+           # print("A: ",A_img.shape, A_lbl.shape)
             aug = self.paired_transformA(image=A_img, mask=A_lbl)
-            A = torch.cat((aug['image'], aug['mask']))
+            img, lbl = aug['image'], np.transpose(aug['mask'][0], (2,0,1))
+           # print("A_a: ",img.shape, lbl.shape)
+            A = torch.cat((img, lbl))
         else:
             A = self.transform_A(A_img)
 
         if self.hasLblB:
             B_lbl_path = self.B_lbl_paths[index_B] # use index from above
             B_lbl = np.asarray(skimage.io.imread(B_lbl_path))
+            B_img = np.asarray(B_img)
+           # print("B:", B_img.shape, B_lbl.shape)
             aug = self.paired_transformB(image=B_img, mask=B_lbl)
-            B = torch.cat((aug['image'], aug['mask']))
+            img, lbl = aug['image'], np.transpose(aug['mask'][0], (2,0,1))
+           # print("B_a: ",img.shape, lbl.shape)
+            B = torch.cat((img, lbl))
         else:
-            B = self.transform_A(B_img)
+           # print(B_img)
+           # print(type(B_img))
+           # print(B_img.size, np.asarray(B_img).shape)
+           # print()
+            B = self.transform_B(B_img)
 
         # pad images with less channels 
         if self.hasLblA != self.hasLblB:
             s, l = (A, B) if A.shape[0] < B.shape[0] else (B, A)
             diff = len(l)-len(s)
-            padding = torch.zeros((diff, *A.shape[1:]))
+            padding = torch.zeros((diff, *s.shape[1:]))
+           # print("s l pad: ", s.shape, l.shape, padding.shape, end=' ')
             s = torch.cat((s, padding))
+           # print(s.shape)
             if A.shape[0] < B.shape[0]:
                 A, B = s, l 
             else:
@@ -149,7 +163,8 @@ class UnalignedLabelDataset(BaseDataset):
         return {
                 'A': A, 'B': B, 
                 'A_paths': A_path, 'B_paths': B_path,
-                'A_paths': A_lbl_path, 'B_paths': B_lbl_path
+                'A_lbl_paths': A_lbl_path if A_lbl_path is not None else '',
+                'B_lbl_paths': B_lbl_path if B_lbl_path is not None else ''
             }
 
     def __len__(self):

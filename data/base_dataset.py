@@ -100,6 +100,7 @@ def get_transform(
 
 
         T = ab.Compose([ab.Resize(height=new_h, width=new_w) for new_w, new_h in ((new_w, new_h),) if new_w!=-1] + [
+            ab.RandomCrop(height=opt.crop_size, width=opt.crop_size),
             ab.RandomShadow(),
             ab.RandomSunFlare(p=.1),
             ab.OpticalDistortion(),
@@ -125,10 +126,10 @@ def get_transform(
     if grayscale:
         transform_list.append(transforms.Grayscale(1))
     if 'resize' in opt.preprocess:
-        osize = [opt.load_size, opt.load_size]
+        osize = [opt.load_size, opt.load_size] if opt.load_width==-1 else [opt.load_height,opt.load_width]
         transform_list.append(transforms.Resize(osize, method))
     elif 'scale_width' in opt.preprocess:
-        transform_list.append(transforms.Lambda(lambda img: __scale_width(img, opt.load_size, method)))
+        transform_list.append(transforms.Lambda(lambda img: __scale_width(img, opt.load_size if opt.load_width==-1 else opt.load_width, method)))
 
     if 'crop' in opt.preprocess:
         if params is None:

@@ -3,6 +3,7 @@ channels:
 - defaults
 - pytorch
 - peterjc123
+- conda-forge
 dependencies:
 - python
 - pytorch
@@ -15,3 +16,6 @@ dependencies:
   - Pillow
   - numpy
   - visdom==0.1.7
+
+- imgaug
+- albumentations

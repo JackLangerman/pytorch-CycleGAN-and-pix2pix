@@ -4,7 +4,10 @@ from data.image_folder import make_dataset
 from PIL import Image
 import random
 
+import torch
+import numpy as np
 import skimage # to read tiffs
+import skimage.io # to read tiffs
 
 class UnalignedLabelDataset(BaseDataset):
     """
@@ -105,8 +108,8 @@ class UnalignedLabelDataset(BaseDataset):
         else:   # randomize the index for domain B to avoid fixed pairs.
             index_B = random.randint(0, self.B_size - 1)
         B_path = self.B_paths[index_B]
-        A_img = Image.open(A_path).convert('RGB')
-        B_img = Image.open(B_path).convert('RGB')
+        A_img = np.asarray(Image.open(A_path).convert('RGB'))
+        B_img = np.asarray(Image.open(B_path).convert('RGB'))
 
         # apply image transformation
         # A = self.transform_A(A_img)
@@ -117,7 +120,7 @@ class UnalignedLabelDataset(BaseDataset):
         A_lbl_path = B_lbl_path = None
         if self.hasLblA:
             A_lbl_path = self.A_lbl_paths[index_A]  # use index from above
-            A_lbl = skimage.io.imread(A_lbl_path)
+            A_lbl = np.asarray(skimage.io.imread(A_lbl_path))
             aug = self.paired_transformA(image=A_img, mask=A_lbl)
             A = torch.cat((aug['image'], aug['mask']))
         else:
@@ -125,7 +128,7 @@ class UnalignedLabelDataset(BaseDataset):
 
         if self.hasLblB:
             B_lbl_path = self.B_lbl_paths[index_B] # use index from above
-            B_lbl = skimage.io.imread(B_lbl_path)
+            B_lbl = np.asarray(skimage.io.imread(B_lbl_path))
             aug = self.paired_transformB(image=B_img, mask=B_lbl)
             B = torch.cat((aug['image'], aug['mask']))
         else:

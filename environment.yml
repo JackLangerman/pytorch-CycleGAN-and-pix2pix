@@ -1,17 +1,14 @@
 name: pytorch-CycleGAN-and-pix2pix
 channels:
-- defaults
-- pytorch
 - peterjc123
+- defaults
 dependencies:
-- python
-- pytorch
+- python=3.5.5
+- pytorch=0.4.1
 - scipy
-- pip
 - pip:
-  - dominate
-# - git+https://github.com/pytorch/vision.git
-  - torchvision
-  - Pillow
-  - numpy
+  - dominate==2.3.1
+  - git+https://github.com/pytorch/vision.git
+  - Pillow==5.0.0
+  - numpy==1.14.1
   - visdom==0.1.7

@@ -6,7 +6,7 @@ import random
 
 import skimage # to read tiffs
 
-class UnalignedDatasetLabel(BaseDataset):
+class UnalignedLabelDataset(BaseDataset):
     """
     This dataset class can load unaligned/unpaired datasets.
 
@@ -28,31 +28,56 @@ class UnalignedDatasetLabel(BaseDataset):
         self.dir_B = os.path.join(opt.dataroot, opt.phase + 'B')  # create a path '/path/to/data/trainB'
 
         ### added by jack ### 
+        verbose = self.opt.verbose
+        print("verbose:", verbose)
+
         btoA = self.opt.direction == 'BtoA'
         input_nc = self.opt.output_nc if btoA else self.opt.input_nc       # get the number of channels of input image
         output_nc = self.opt.input_nc if btoA else self.opt.output_nc      # get the number of channels of output image
 
+        print(''.join((opt.phase, 'Lbl', 'A')))
         self.lbl_dir_A = os.path.join(opt.dataroot, ''.join((opt.phase, 'Lbl', 'A')))  # create a path '/path/to/data/trainLblA'
         self.lbl_dir_B = os.path.join(opt.dataroot, ''.join((opt.phase, 'Lbl', 'B')))  # create a path '/path/to/data/trainLblB'
 
         self.hasLblA = os.path.exists(self.lbl_dir_A)
         self.hasLblB = os.path.exists(self.lbl_dir_B)
 
+        print('A has label: {}\t B has label: {}'.format(self.hasLblA, self.hasLblB))
+
         if self.hasLblA:
+            if verbose:
+                print("gathering A label", end="\t", flush=True)
             self.A_lbl_paths = sorted(make_dataset(self.lbl_dir_A, opt.max_dataset_size))   # load images from '/path/to/data/trainLblA'
+            if verbose:
+                print("done -- {} images".format(len(self.A_lbl_paths)), flush=True)
+
             self.paired_transformA = get_transform(self.opt, paired=True)
         else:
             self.transform_A = get_transform(self.opt, grayscale=(input_nc == 1))
 
         if self.hasLblB:
+            if verbose:
+                print("gathering B label", end="\t", flush=True)
             self.B_lbl_paths = sorted(make_dataset(self.lbl_dir_B, opt.max_dataset_size))    # load images from '/path/to/data/trainLblB'
+            if verbose:
+                print("done -- {} images".format(len(self.B_lbl_paths)), flush=True)
+
             self.paired_transformB = get_transform(self.opt, paired=True)
         else:
             self.transform_B = get_transform(self.opt, grayscale=(output_nc == 1))
         ### /added by jack ### 
 
+        if verbose:
+            print("gathering A", end="\t", flush=True)
         self.A_paths = sorted(make_dataset(self.dir_A, opt.max_dataset_size))   # load images from '/path/to/data/trainA'
+        if verbose:
+            print("done -- {} images".format(len(self.A_paths)), flush=True)
+        if verbose:
+            print("gathering A", end="\t", flush=True)
         self.B_paths = sorted(make_dataset(self.dir_B, opt.max_dataset_size))    # load images from '/path/to/data/trainB'
+        if verbose:
+            print("done -- {} images".format(len(self.B_paths)), flush=True)
+
         self.A_size = len(self.A_paths)  # get the size of dataset A
         self.B_size = len(self.B_paths)  # get the size of dataset B
         # btoA = self.opt.direction == 'BtoA'

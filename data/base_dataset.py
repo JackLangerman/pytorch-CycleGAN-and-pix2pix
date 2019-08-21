@@ -10,6 +10,7 @@ import torchvision.transforms as transforms
 from abc import ABC, abstractmethod
 
 import albumentations as ab
+import albumentations.pytorch
 
 class BaseDataset(data.Dataset, ABC):
     """This class is an abstract base class (ABC) for datasets.
@@ -89,6 +90,7 @@ def get_transform(
 
     transform_list = []
     if paired:
+        new_h = new_w = None
         if opt.preprocess == 'resize_and_crop':
             new_h = new_w = opt.load_size
         elif opt.preprocess == 'scale_width_and_crop':

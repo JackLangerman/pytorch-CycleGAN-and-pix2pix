@@ -90,16 +90,16 @@ def get_transform(
 
     transform_list = []
     if paired:
-        new_h = new_w = None
-        if opt.preprocess == 'resize_and_crop':
-            new_h = new_w = opt.load_size
-        elif opt.preprocess == 'scale_width_and_crop':
-            new_w = opt.load_size
-            new_h = opt.load_size * h // w
+        # new_h = new_w = None
+        # if opt.preprocess == 'resize_and_crop':
+        #     new_h = new_w = opt.load_size
+        # elif opt.preprocess == 'scale_width_and_crop':
+        #     new_w = opt.load_size
+        #     new_h = opt.load_size * h // w
+        new_w, new_h = opt.load_width, opt.load_height
 
 
-        T = ab.Compose([
-            ab.Resize(height=new_h, width=new_w),
+        T = ab.Compose([ab.Resize(height=new_h, width=new_w) for new_w, new_h in ((new_w, new_h),) if new_w!=-1] + [
             ab.RandomShadow(),
             ab.RandomSunFlare(p=.1),
             ab.OpticalDistortion(),

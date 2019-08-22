@@ -9,6 +9,10 @@ from PIL import Image
 import torchvision.transforms as transforms
 from abc import ABC, abstractmethod
 
+import cv2
+cv2.setNumThreads(0)
+cv2.ocl.setUseOpenCL(False) 
+
 import albumentations as ab
 import albumentations.pytorch
 
@@ -101,20 +105,20 @@ def get_transform(
 
         T = ab.Compose([ab.Resize(height=new_h, width=new_w) for new_w, new_h in ((new_w, new_h),) if new_w!=-1] + [
             ab.RandomCrop(height=opt.crop_size, width=opt.crop_size),
-            ab.RandomShadow(),
-            ab.RandomSunFlare(p=.1),
-            ab.OpticalDistortion(),
-            ab.HueSaturationValue(),
-            ab.RandomBrightness(),
-            ab.RandomContrast(),
+         #   ab.RandomShadow(),
+         #   ab.RandomSunFlare(p=.1),
+         #   ab.OpticalDistortion(),
+         #   ab.HueSaturationValue(),
+         #   ab.RandomBrightness(),
+         #   ab.RandomContrast(),
             ab.OneOf([
                 ab.MotionBlur(blur_limit=50),
                 ab.MedianBlur(),
                 ab.GaussianBlur(),
             ]),
-            ab.CoarseDropout(),
-            ab.Normalize(),
-            ab.ChannelDropout(),
+        #    ab.CoarseDropout(),
+            ab.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        #    ab.ChannelDropout(),
             ab.ShiftScaleRotate(shift_limit=0.005, scale_limit=0.1, rotate_limit=10, interpolation=1),
             ab.pytorch.ToTensor(sigmoid=False)
         ])

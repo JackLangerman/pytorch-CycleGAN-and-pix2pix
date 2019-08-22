@@ -120,9 +120,7 @@ class Visualizer():
                 images = []
                 idx = 0
                 for label, image in visuals.items():
-                    print("SHAPE:", image.shape)
                     image_numpy, lbl_numpy = slice2imglbl(image)
-                    print("SHAPES: ",image_numpy.shape, None if lbl_numpy is None else lbl_numpy.shape)
 
                     label_html_row += '<td>%s</td>' % label
                     images.append(image_numpy.transpose([2, 0, 1]))
@@ -236,22 +234,17 @@ class Visualizer():
 
 
 def slice2imglbl(image):
-    print("PRESLICE:", image.shape)
-    if len(image.shape) == 4 and image.shape[0]==1:
-        image = image[0]
-    print("POSTSLICE:", image.shape)
+    #if len(image.shape) == 4 and image.shape[0]==1:
+    #    image = image[0]
     image_numpy, lbl_numpy = None, None
-    if image.shape[0]==6:
-        img, lbl = image[:3], image[3:]
-        print("IMG/LBL", img.shape, lbl.shape)
+    if image.shape[1]==6:
+        img, lbl = image[:, :3], image[:, 3:]
         image_numpy, lbl_numpy = ( 
-                util.tensor2im(img[None, ...]),
-                util.tensor2im(lbl[None, ...]),
+                util.tensor2im(img),
+                util.tensor2im(lbl)
             )
-        print(image_numpy.shape, lbl_numpy.shape, "<<<<<<<<<---------")
     else:
-        image_numpy = util.tensor2im(image[None, ...])
-        print(image_numpy.shape, None, "<<<<<<<<<---------")
+        image_numpy = util.tensor2im(image)
 
     return image_numpy, lbl_numpy
 

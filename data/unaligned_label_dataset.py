@@ -123,8 +123,9 @@ class UnalignedLabelDataset(BaseDataset):
             A_lbl = np.asarray(skimage.io.imread(A_lbl_path))
             A_img = np.asarray(A_img)
            # print("A: ",A_img.shape, A_lbl.shape)
-            aug = self.paired_transformA(image=A_img, mask=A_lbl)
-            img, lbl = aug['image'], np.transpose(aug['mask'][0], (2,0,1))
+            # aug = self.paired_transformA(image=A_img, mask=A_lbl)
+            # img, lbl = aug['image'], np.transpose(aug['mask'][0], (2,0,1))
+            img, lbl = self.paired_transformA(image=A_img, mask=A_lbl)
            # print("A_a: ",img.shape, lbl.shape)
             A = torch.cat((img, lbl))
         else:

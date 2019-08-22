@@ -10,11 +10,12 @@ import torchvision.transforms as transforms
 from abc import ABC, abstractmethod
 
 import cv2
-cv2.setNumThreads(0)
-cv2.ocl.setUseOpenCL(False) 
+cv2.setNumThreads(0)        # avoid deadlock w/ multiprocess dataloader
+cv2.ocl.setUseOpenCL(False) # avoid deadlock w/ multiprocess dataloader
 
-import albumentations as ab
-import albumentations.pytorch
+import albumentations as ab   # data aug
+import albumentations.pytorch # data aug
+from functools import partial
 
 class BaseDataset(data.Dataset, ABC):
     """This class is an abstract base class (ABC) for datasets.
@@ -84,6 +85,43 @@ def get_params(opt, size):
     return {'crop_pos': (x, y), 'flip': flip}
 
 
+def transform(image, mask=None, new_w=-1, new_h=-1):
+    T_stack_pre = ab.Compose( ( 
+         ([ ab.Resize(height=new_h, width=new_w)] if new_w!=-1 else []) +
+          [ ab.OpticalDistortion(),
+            ab.RandomCrop(height=opt.crop_size, width=opt.crop_size),
+            ab.ShiftScaleRotate(shift_limit=0.005, scale_limit=0.01, rotate_limit=5, interpolation=1),
+            ab.ChannelDropout((1,4)),
+            ab.CoarseDropout()
+        ]) )
+    T_pair = ab.Compose(  [
+            ab.HueSaturationValue(),
+            ab.RandomBrightness(),
+            ab.RandomContrast(),
+            ab.OneOf([
+                ab.MotionBlur(),
+                ab.MedianBlur(),
+                ab.GaussianBlur(),
+            ])
+        ])
+    T_stack_post = ab.Compose([
+            ab.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            ab.pytorch.ToTensor(),
+        ])
+
+
+    cat = T_stack_pre(image=np.concatenate((image, mask)))['image']
+    image, mask = cat[:3], cat[3:]
+
+    aug = T_pair(image=image, mask=mask)
+    image, mask = aug['image'], aug['mask']
+
+    cat = T_stack_post(image=np.concatenate((image, mask)))['image']
+    image, mask = cat[:3], cat[3:]
+
+    return image, mask
+
+
 def get_transform(
     opt, 
     params=None, 
@@ -92,71 +130,72 @@ def get_transform(
     convert=True, 
     paired=False ):
 
-    transform_list = []
-    if paired:
-        # new_h = new_w = None
-        # if opt.preprocess == 'resize_and_crop':
-        #     new_h = new_w = opt.load_size
-        # elif opt.preprocess == 'scale_width_and_crop':
-        #     new_w = opt.load_size
-        #     new_h = opt.load_size * h // w
-        new_w, new_h = opt.load_width, opt.load_height
+    return partial(transform, new_w=opt.load_width, new_h=opt.load_height)
+    # transform_list = []
+    # if paired:
+    #     # new_h = new_w = None
+    #     # if opt.preprocess == 'resize_and_crop':
+    #     #     new_h = new_w = opt.load_size
+    #     # elif opt.preprocess == 'scale_width_and_crop':
+    #     #     new_w = opt.load_size
+    #     #     new_h = opt.load_size * h // w
+    #     new_w, new_h = opt.load_width, opt.load_height
 
 
-        T = ab.Compose([ab.Resize(height=new_h, width=new_w) for new_w, new_h in ((new_w, new_h),) if new_w!=-1] + [
-            ab.RandomCrop(height=opt.crop_size, width=opt.crop_size),
-         #   ab.RandomShadow(),
-         #   ab.RandomSunFlare(p=.1),
-         #   ab.OpticalDistortion(),
-         #   ab.HueSaturationValue(),
-         #   ab.RandomBrightness(),
-         #   ab.RandomContrast(),
-            ab.OneOf([
-                ab.MotionBlur(blur_limit=50),
-                ab.MedianBlur(),
-                ab.GaussianBlur(),
-            ]),
-        #    ab.CoarseDropout(),
-            ab.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-        #    ab.ChannelDropout(),
-            ab.ShiftScaleRotate(shift_limit=0.005, scale_limit=0.1, rotate_limit=10, interpolation=1),
-            ab.pytorch.ToTensor(sigmoid=False)
-        ])
+    #     T = ab.Compose([ab.Resize(height=new_h, width=new_w) for new_w, new_h in ((new_w, new_h),) if new_w!=-1] + [
+    #         ab.RandomCrop(height=opt.crop_size, width=opt.crop_size),
+    #      #   ab.RandomShadow(),
+    #      #   ab.RandomSunFlare(p=.1),
+    #        # ab.OpticalDistortion(),
+    #        # ab.HueSaturationValue(),
+    #        # ab.RandomBrightness(),
+    #        # ab.RandomContrast(),
+    #         # ab.OneOf([
+    #             # ab.MotionBlur(),
+    #             # ab.MedianBlur(),
+    #             # ab.GaussianBlur(),
+    #         # ]),
+    #        # ab.CoarseDropout(),
+    #         ab.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+    #     #    ab.ChannelDropout(),
+    #         ab.ShiftScaleRotate(shift_limit=0.005, scale_limit=0.1, rotate_limit=10, interpolation=1),
+    #         ab.pytorch.ToTensor(sigmoid=False)
+    #     ])
 
-        return T
+    #     return T
 
 
-    transform_list = []
-    if grayscale:
-        transform_list.append(transforms.Grayscale(1))
-    if 'resize' in opt.preprocess:
-        osize = [opt.load_size, opt.load_size] if opt.load_width==-1 else [opt.load_height,opt.load_width]
-        transform_list.append(transforms.Resize(osize, method))
-    elif 'scale_width' in opt.preprocess:
-        transform_list.append(transforms.Lambda(lambda img: __scale_width(img, opt.load_size if opt.load_width==-1 else opt.load_width, method)))
-
-    if 'crop' in opt.preprocess:
-        if params is None:
-            transform_list.append(transforms.RandomCrop(opt.crop_size))
-        else:
-            transform_list.append(transforms.Lambda(lambda img: __crop(img, params['crop_pos'], opt.crop_size)))
-
-    if opt.preprocess == 'none':
-        transform_list.append(transforms.Lambda(lambda img: __make_power_2(img, base=4, method=method)))
-
-    if not opt.no_flip:
-        if params is None:
-            transform_list.append(transforms.RandomHorizontalFlip())
-        elif params['flip']:
-            transform_list.append(transforms.Lambda(lambda img: __flip(img, params['flip'])))
-
-    if convert:
-        transform_list += [transforms.ToTensor()]
-        if grayscale:
-            transform_list += [transforms.Normalize((0.5,), (0.5,))]
-        else:
-            transform_list += [transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
-    return transforms.Compose(transform_list)
+    #transform_list = []
+    #if grayscale:
+    #    transform_list.append(transforms.Grayscale(1))
+    #if 'resize' in opt.preprocess:
+    #    osize = [opt.load_size, opt.load_size] if opt.load_width==-1 else [opt.load_height,opt.load_width]
+    #    transform_list.append(transforms.Resize(osize, method))
+    #elif 'scale_width' in opt.preprocess:
+    #    transform_list.append(transforms.Lambda(lambda img: __scale_width(img, opt.load_size if opt.load_width==-1 else opt.load_width, method)))
+#
+    #if 'crop' in opt.preprocess:
+    #    if params is None:
+    #        transform_list.append(transforms.RandomCrop(opt.crop_size))
+    #    else:
+    #        transform_list.append(transforms.Lambda(lambda img: __crop(img, params['crop_pos'], opt.crop_size)))
+#
+    #if opt.preprocess == 'none':
+    #    transform_list.append(transforms.Lambda(lambda img: __make_power_2(img, base=4, method=method)))
+#
+    #if not opt.no_flip:
+    #    if params is None:
+    #        transform_list.append(transforms.RandomHorizontalFlip())
+    #    elif params['flip']:
+    #        transform_list.append(transforms.Lambda(lambda img: __flip(img, params['flip'])))
+#
+    #if convert:
+    #    transform_list += [transforms.ToTensor()]
+    #    if grayscale:
+    #        transform_list += [transforms.Normalize((0.5,), (0.5,))]
+    #    else:
+    #        transform_list += [transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
+    #return transforms.Compose(transform_list)
 
 
 def __make_power_2(img, base, method=Image.BICUBIC):

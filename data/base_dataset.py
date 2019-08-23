@@ -85,41 +85,83 @@ def get_params(opt, size):
     return {'crop_pos': (x, y), 'flip': flip}
 
 
-def transform(image, mask=None, new_w=-1, new_h=-1):
-    T_stack_pre = ab.Compose( ( 
-         ([ ab.Resize(height=new_h, width=new_w)] if new_w!=-1 else []) +
-          [ ab.OpticalDistortion(),
+def transform(image, mask=None, opt=None, paired=False):
+    assert opt is not None, 'opt is not optional (it cannot be None)'
+    #[ ab.Resize(height=opt.load_height, width=opt.load_width)] if opt.load_width!=-1 else [])
+    resize = ab.Resize(height=opt.load_height, width=opt.load_width)
+    T_stack_pre = ab.Compose( 
+          [ 
+            ab.ChannelDropout((1, 4 if paired else 2 )),
+            #ab.ChannelDropout(),
+            ab.OpticalDistortion(),
             ab.RandomCrop(height=opt.crop_size, width=opt.crop_size),
-            ab.ShiftScaleRotate(shift_limit=0.005, scale_limit=0.01, rotate_limit=5, interpolation=1),
-            ab.ChannelDropout((1,4)),
             ab.CoarseDropout()
-        ]) )
+        ] )
     T_pair = ab.Compose(  [
-            ab.HueSaturationValue(),
-            ab.RandomBrightness(),
-            ab.RandomContrast(),
+            ab.ShiftScaleRotate(shift_limit=0.005, scale_limit=0.01, rotate_limit=5, interpolation=1),
             ab.OneOf([
                 ab.MotionBlur(),
-                ab.MedianBlur(),
+                ab.MedianBlur(5),
                 ab.GaussianBlur(),
-            ])
+            ]),
+            #ab.ToFloat(),
+            #ab.HueSaturationValue(),
+            #ab.RandomBrightness(),
+            #ab.RandomContrast(),
+            ab.Normalize((.5,)*3, (.5,)*3)
         ])
+    #nc = 6 if paired else 3
     T_stack_post = ab.Compose([
-            ab.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            #ab.Normalize((0.5,)*nc, (0.5,)*nc),
             ab.pytorch.ToTensor(),
         ])
 
 
-    cat = T_stack_pre(image=np.concatenate((image, mask)))['image']
-    image, mask = cat[:3], cat[3:]
 
-    aug = T_pair(image=image, mask=mask)
-    image, mask = aug['image'], aug['mask']
+    if paired:
+        #i = 0
+        #print('\n\n')
+        #print(str(i), image.mean(), image.std()); i += 1
 
-    cat = T_stack_post(image=np.concatenate((image, mask)))['image']
-    image, mask = cat[:3], cat[3:]
+        aug = resize(image=image, mask=mask)
+        image, mask = aug['image'], aug['mask']
 
-    return image, mask
+        #print(str(i), image.mean(), image.std()); i += 1
+        cat = T_stack_pre(image=np.concatenate((image, mask), axis=-1))['image']
+        image, mask = cat[..., :3], cat[..., 3:]
+
+        #print(str(i), image.mean(), image.std()); i += 1
+        aug = T_pair(image=image, mask=mask)
+        image, mask = aug['image'], aug['mask']
+
+        #print(str(i), image.mean(), image.std()); i += 1
+        cat = T_stack_post(image=np.concatenate((image, mask), axis=-1))['image']
+        image, mask = cat[:3], cat[3:]
+        #print(str(i), image.mean(), image.std()); i += 1
+        #print('\n\n')
+        return image, mask
+    else:
+        #print('IMG', type(image)) 
+        #print('1',image.shape, end=' -> ',flush=True)
+        image = resize(image=image)['image'],
+        #print('\n\n\n\n\n\n\n')
+        #print(image)
+        #print('\n\n\n\n\n\n\n')
+        #print('2',image.shape, end=' -> ', flush=True)
+        #print('IMG TYPE',type(image), len(image))
+        if type(image) is tuple:
+            image = image[0]
+        image = T_stack_pre(image=image)['image']
+        #print(image.shape, end=' -> ',flush=True)
+
+        image = T_pair(image=image)['image']
+        #print(image.shape, end=' -> ')
+
+        image = T_stack_post(image=image)['image']
+        #print(image.shape)
+
+        return image
+
 
 
 def get_transform(
@@ -130,7 +172,7 @@ def get_transform(
     convert=True, 
     paired=False ):
 
-    return partial(transform, new_w=opt.load_width, new_h=opt.load_height)
+    return partial(transform,opt=opt,paired=paired)
     # transform_list = []
     # if paired:
     #     # new_h = new_w = None

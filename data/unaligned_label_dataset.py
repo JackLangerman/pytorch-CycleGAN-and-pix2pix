@@ -126,10 +126,10 @@ class UnalignedLabelDataset(BaseDataset):
             # aug = self.paired_transformA(image=A_img, mask=A_lbl)
             # img, lbl = aug['image'], np.transpose(aug['mask'][0], (2,0,1))
             img, lbl = self.paired_transformA(image=A_img, mask=A_lbl)
-           # print("A_a: ",img.shape, lbl.shape)
+            #print("A_a: ",img.shape, lbl.shape)
             A = torch.cat((img, lbl))
         else:
-            A = self.transform_A(A_img)
+            A = self.transform_A(np.asarray(A_img))
 
         if self.hasLblB:
             B_lbl_path = self.B_lbl_paths[index_B] # use index from above
@@ -145,7 +145,10 @@ class UnalignedLabelDataset(BaseDataset):
            # print(type(B_img))
            # print(B_img.size, np.asarray(B_img).shape)
            # print()
-            B = self.transform_B(B_img)
+           # B = self.transform_B(np.asarray(B_img))
+           B_numpy = np.asarray(B_img)
+           #print(B_numpy.shape)
+           B = self.transform_B(B_numpy)
 
         # pad images with less channels 
         #if False and self.hasLblA != self.hasLblB:

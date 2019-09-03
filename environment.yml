@@ -17,6 +17,7 @@ dependencies:
   - Pillow==5.0.0
   - numpy
   - visdom==0.1.7
+  - pytorch-lamb
 
 - imgaug
 - albumentations

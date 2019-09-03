@@ -91,11 +91,11 @@ def transform(image, mask=None, opt=None, paired=False):
     resize = ab.Resize(height=opt.load_height, width=opt.load_width)
     T_stack_pre = ab.Compose( 
           [ 
-            ab.ChannelDropout((1, 4 if paired else 2 )),
+            #ab.ChannelDropout((1, 4 if paired else 2 )),
             #ab.ChannelDropout(),
             ab.OpticalDistortion(),
             ab.RandomCrop(height=opt.crop_size, width=opt.crop_size),
-            ab.CoarseDropout()
+            # ab.CoarseDropout()
         ] )
     T_pair = ab.Compose(  [
             ab.ShiftScaleRotate(shift_limit=0.005, scale_limit=0.01, rotate_limit=5, interpolation=1),
